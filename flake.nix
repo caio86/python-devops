@@ -24,11 +24,12 @@
   outputs =
     { self, nixpkgs, ... }@inputs:
     let
+      inherit (nixpkgs) lib;
       systems = [
         "x86_64-linux"
         "aarch64-linux"
       ];
-      forAllSystems = nixpkgs.lib.genAttrs systems;
+      forAllSystems = lib.genAttrs systems;
 
       nixpkgsFor = forAllSystems (system: nixpkgs.legacyPackages.${system});
 
@@ -39,7 +40,7 @@
       pythonSet =
         pkgs:
         (pkgs.callPackage inputs.pyproject-nix.build.packages { python = pkgs.python312; }).overrideScope (
-          nixpkgs.lib.composeManyExtensions [
+          lib.composeManyExtensions [
             inputs.pyproject-build-systems.overlays.default
             overlay
           ]
@@ -52,12 +53,36 @@
           pkgs = nixpkgsFor.${system};
         in
         {
-          default = pkgs.mkShell {
+          impure = pkgs.mkShell {
             packages = with pkgs; [
               python312
               uv
             ];
+
+            env = {
+              UV_PYTHON_DOWNLOADS = "never";
+              UV_PYTHON = pkgs.python312.interpreter;
+            };
           };
+
+          uv2nix =
+            let
+              virtualEnv = (pythonSet pkgs).mkVirtualEnv "python-devops-dev-env" workspace.deps.all;
+            in
+            pkgs.mkShell {
+              packages = with pkgs; [
+                virtualEnv
+                uv
+              ];
+
+              env = {
+                UV_NO_SYNC = "1";
+                UV_PYTHON_DOWNLOADS = "never";
+                UV_PYTHON = "${virtualEnv}/bin/python";
+              };
+            };
+
+          default = self.devShells.${system}.uv2nix;
         }
       );
 
