@@ -1,5 +1,5 @@
 [project]
-name = "devops-teste"
+name = "python-devops"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -10,7 +10,7 @@ requires-python = ">=3.12"
 dependencies = []
 
 [project.scripts]
-devops-teste = "devops_teste:main"
+python-devops = "python_devops:main"
 
 [build-system]
 requires = ["hatchling"]

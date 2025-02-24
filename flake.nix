@@ -67,14 +67,14 @@
           pkgs = nixpkgsFor.${system};
         in
         {
-          default = (pythonSet pkgs).mkVirtualEnv "devops-teste-env" workspace.deps.default;
+          default = (pythonSet pkgs).mkVirtualEnv "python-devops-env" workspace.deps.default;
         }
       );
 
       apps = forAllSystems (system: {
         default = {
           type = "app";
-          program = "${self.packages.${system}.default}/bin/devops-teste";
+          program = "${self.packages.${system}.default}/bin/python-devops";
         };
       });
     };
