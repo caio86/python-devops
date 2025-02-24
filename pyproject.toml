@@ -7,7 +7,9 @@ authors = [
     { name = "caio86", email = "caioluiz86@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "flask>=3.1.0",
+]
 
 [project.scripts]
 python-devops = "python_devops:main"
@@ -15,3 +17,9 @@ python-devops = "python_devops:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.394",
+    "ruff>=0.9.7",
+]
