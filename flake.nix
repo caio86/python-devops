@@ -93,6 +93,13 @@
         in
         {
           default = (pythonSet pkgs).mkVirtualEnv "python-devops-env" workspace.deps.default;
+
+          docker = pkgs.dockerTools.buildImage {
+            name = "python-devops";
+            config = {
+              cmd = [ "${self.packages.${system}.default}/bin/python-devops" ];
+            };
+          };
         }
       );
 
