@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-python-devops = "python_devops:main"
+app = "python_devops:main"
 
 [build-system]
 requires = ["hatchling"]

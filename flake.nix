@@ -97,7 +97,7 @@
           docker = pkgs.dockerTools.buildImage {
             name = "python-devops";
             config = {
-              cmd = [ "${self.packages.${system}.default}/bin/python-devops" ];
+              cmd = [ "${self.packages.${system}.default}/bin/app" ];
             };
           };
         }
@@ -106,7 +106,7 @@
       apps = forAllSystems (system: {
         default = {
           type = "app";
-          program = "${self.packages.${system}.default}/bin/python-devops";
+          program = "${self.packages.${system}.default}/bin/app";
         };
       });
     };
