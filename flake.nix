@@ -2,6 +2,8 @@
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
 
+    flake-parts.url = "github:hercules-ci/flake-parts";
+
     pyproject-nix = {
       url = "github:pyproject-nix/pyproject.nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -22,92 +24,90 @@
   };
 
   outputs =
-    { self, nixpkgs, ... }@inputs:
-    let
-      inherit (nixpkgs) lib;
+    { flake-parts, ... }@inputs:
+    flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [
         "x86_64-linux"
         "aarch64-linux"
       ];
-      forAllSystems = lib.genAttrs systems;
 
-      nixpkgsFor = forAllSystems (system: nixpkgs.legacyPackages.${system});
-
-      workspace = inputs.uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ./.; };
-
-      overlay = workspace.mkPyprojectOverlay { sourcePreference = "wheel"; };
-
-      pythonSet =
-        pkgs:
-        (pkgs.callPackage inputs.pyproject-nix.build.packages { python = pkgs.python312; }).overrideScope (
-          lib.composeManyExtensions [
-            inputs.pyproject-build-systems.overlays.default
-            overlay
-          ]
-        );
-    in
-    {
-      devShells = forAllSystems (
-        system:
+      perSystem =
+        {
+          config,
+          self',
+          inputs',
+          pkgs,
+          system,
+          ...
+        }:
         let
-          pkgs = nixpkgsFor.${system};
+          inherit (pkgs) lib;
+
+          workspace = inputs.uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ./.; };
+
+          overlay = workspace.mkPyprojectOverlay { sourcePreference = "wheel"; };
+
+          pythonSet =
+            (pkgs.callPackage inputs.pyproject-nix.build.packages { python = pkgs.python312; }).overrideScope
+              (
+                lib.composeManyExtensions [
+                  inputs.pyproject-build-systems.overlays.default
+                  overlay
+                ]
+              );
         in
         {
-          impure = pkgs.mkShell {
-            packages = with pkgs; [
-              python312
-              uv
-            ];
-
-            env = {
-              UV_PYTHON_DOWNLOADS = "never";
-              UV_PYTHON = pkgs.python312.interpreter;
-            };
-          };
-
-          uv2nix =
-            let
-              virtualEnv = (pythonSet pkgs).mkVirtualEnv "python-devops-dev-env" workspace.deps.all;
-            in
-            pkgs.mkShell {
+          devShells = {
+            impure = pkgs.mkShell {
               packages = with pkgs; [
-                virtualEnv
+                python312
                 uv
               ];
 
               env = {
-                UV_NO_SYNC = "1";
                 UV_PYTHON_DOWNLOADS = "never";
-                UV_PYTHON = "${virtualEnv}/bin/python";
+                UV_PYTHON = pkgs.python312.interpreter;
               };
             };
 
-          default = self.devShells.${system}.uv2nix;
-        }
-      );
+            uv2nix =
+              let
+                virtualEnv = pythonSet.mkVirtualEnv "python-devops-dev-env" workspace.deps.all;
+              in
+              pkgs.mkShell {
+                packages = with pkgs; [
+                  virtualEnv
+                  uv
+                ];
 
-      packages = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgsFor.${system};
-        in
-        {
-          default = (pythonSet pkgs).mkVirtualEnv "python-devops-env" workspace.deps.default;
+                env = {
+                  UV_NO_SYNC = "1";
+                  UV_PYTHON_DOWNLOADS = "never";
+                  UV_PYTHON = "${virtualEnv}/bin/python";
+                };
+              };
 
-          docker = pkgs.dockerTools.buildImage {
-            name = "python-devops";
-            config = {
-              cmd = [ "${self.packages.${system}.default}/bin/app" ];
+            default = self'.devShells.uv2nix;
+          };
+
+          packages = {
+            default = pythonSet.mkVirtualEnv "python-devops-env" workspace.deps.default;
+
+            docker = pkgs.dockerTools.buildImage {
+              name = "python-devops";
+              config = {
+                cmd = [ "${self'.packages.default}/bin/app" ];
+              };
             };
           };
-        }
-      );
 
-      apps = forAllSystems (system: {
-        default = {
-          type = "app";
-          program = "${self.packages.${system}.default}/bin/app";
+          apps = {
+            default = {
+              type = "app";
+              program = "${self'.packages.default}/bin/app";
+            };
+          };
+
         };
-      });
     };
 }
